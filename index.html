@@ -1,77 +1,82 @@
 <!DOCTYPE html>
-   <html>
-   <head>
-       <meta charset="UTF-8">
-       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-       <title>AgentradeX Auth Redirect</title>
-       <style>
-           body { font-family: sans-serif; padding: 20px; text-align: center; }
-           .log { margin-top: 20px; padding: 10px; border: 1px solid #eee; text-align: left; background-color: #f9f9f9; }
-           .error { color: red; font-weight: bold; }
-       </style>
-   </head>
-   <body>
-       <h1>Processing Authentication...</h1>
-       <div id="status">Attempting to redirect back to the AgentradeX app.</div>
-       <div class="log" id="debug-log">
-           <strong>Debug Log:</strong><br>
-       </div>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentradeX Auth Redirect</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        .log { margin-top: 20px; padding: 10px; border: 1px solid #eee; text-align: left; background-color: #f9f9f9; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Processing Authentication...</h1>
+    <div id="status">Attempting to redirect back to the AgentradeX app.</div>
+    <div class="log" id="debug-log">
+        <strong>Debug Log:</strong><br>
+    </div>
 
-       <script type="text/javascript">
-           const debugLog = document.getElementById('debug-log');
+    <script type="text/javascript">
+        const debugLog = document.getElementById('debug-log');
 
-           function logMessage(message) {
-               console.log(message);
-               debugLog.innerHTML += message + '<br>';
-           }
+        function logMessage(message) {
+            console.log(message);
+            debugLog.innerHTML += message + '<br>';
+        }
 
-           function logError(message) {
-               console.error(message);
-               debugLog.innerHTML += '<span class="error">' + message + '</span><br>';
-               document.getElementById('status').innerHTML = '<span class="error">An error occurred. See debug log.</span>';
-           }
+        function logError(message) {
+            console.error(message);
+            debugLog.innerHTML += '<span class="error">' + message + '</span><br>';
+            document.getElementById('status').innerHTML = '<span class="error">An error occurred. See debug log.</span>';
+        }
 
-           try {
-               logMessage("Page loaded. Starting script...");
-               const urlParams = new URLSearchParams(window.location.search);
-               logMessage("URL Search Params: " + window.location.search);
+        try {
+            logMessage("Page loaded. Starting script...");
+            const urlParams = new URLSearchParams(window.location.search);
+            logMessage("URL Search Params: " + window.location.search);
 
-               const authCode = urlParams.get('code');
-               const state = urlParams.get('state');
+            // MODIFIED: Get the REAL authorization code from 'auth_code' parameter
+            const actualAuthCode = urlParams.get('auth_code'); 
+            const legacyCodeParam = urlParams.get('code'); // We can still log the 'code=200' from Fyers
+            const state = urlParams.get('state');
 
-               logMessage("Extracted Auth Code: " + (authCode ? authCode : "NOT FOUND"));
-               logMessage("Extracted State: " + (state ? state : "NOT FOUND"));
+            // MODIFIED: Update logging to show which code is being used
+            logMessage("Extracted REAL Auth Code (from 'auth_code' param): " + (actualAuthCode ? actualAuthCode : "NOT FOUND"));
+            logMessage("Extracted 'code' param (from Fyers, might be '200'): " + (legacyCodeParam ? legacyCodeParam : "NOT FOUND"));
+            logMessage("Extracted State: " + (state ? state : "NOT FOUND"));
 
-               if (authCode && state) {
-                   const appScheme = "agentradex";
-                   const appHost = "fyers-auth-callback";
-                   // Ensure parameters are properly URI encoded
-                   const appRedirectUrl = `${appScheme}://${appHost}?code=${encodeURIComponent(authCode)}&state=${encodeURIComponent(state)}`;
-                   
-                   logMessage("Constructed App Redirect URL: " + appRedirectUrl);
-                   document.getElementById('status').textContent = 'Redirecting to AgentradeX app... If the app does not open automatically, please ensure it is installed and try again or switch back to it manually.';
+            // MODIFIED: Use 'actualAuthCode' for the redirect logic
+            if (actualAuthCode && state) {
+                const appScheme = "agentradex";
+                const appHost = "fyers-auth-callback";
+                
+                // MODIFIED: Ensure 'actualAuthCode' is used as the 'code' parameter for the app redirect
+                const appRedirectUrl = `${appScheme}://${appHost}?code=${encodeURIComponent(actualAuthCode)}&state=${encodeURIComponent(state)}`;
+                
+                logMessage("Constructed App Redirect URL (using REAL Auth Code): " + appRedirectUrl);
+                document.getElementById('status').textContent = 'Redirecting to AgentradeX app... If the app does not open automatically, please ensure it is installed and try again or switch back to it manually.';
 
-                   logMessage("Attempting redirect now via window.location.href...");
-                   window.location.href = appRedirectUrl;
+                logMessage("Attempting redirect now via window.location.href...");
+                window.location.href = appRedirectUrl;
 
-                   // Fallback message in case the redirect is blocked or app isn't installed
-                   // This part of the script might not be reached if the redirect is immediate and successful
-                   setTimeout(() => {
-                       logMessage("setTimeout fallback: If you are still on this page, the redirect might have been blocked or the app is not installed.");
-                       document.getElementById('status').innerHTML = 'If the app did not open, please make sure AgentradeX is installed and try returning to it manually. <br>URL tried: ' + appRedirectUrl;
-                   }, 3000);
+                setTimeout(() => {
+                    logMessage("setTimeout fallback: If you are still on this page, the redirect might have been blocked or the app is not installed.");
+                    document.getElementById('status').innerHTML = 'If the app did not open, please make sure AgentradeX is installed and try returning to it manually. <br>URL tried: ' + appRedirectUrl;
+                }, 3000);
 
-               } else {
-                   logError("Error: 'code' or 'state' missing from URL query parameters.");
-                   if (!authCode) logError("Auth Code is missing.");
-                   if (!state) logError("State is missing.");
-               }
-           } catch (e) {
-               logError("Critical Error in script: " + e.message);
-               if (e.stack) {
-                   logError("Stack: " + e.stack);
-               }
-           }
-       </script>
-   </body>
-   </html>
+            } else {
+                // MODIFIED: Error message reflects the need for 'auth_code'
+                logError("Error: REAL 'auth_code' (from Fyers) or 'state' missing from URL query parameters.");
+                if (!actualAuthCode) logError("REAL Auth Code (from 'auth_code' parameter) is missing.");
+                if (!state) logError("State is missing.");
+            }
+        } catch (e) {
+            logError("Critical Error in script: " + e.message);
+            if (e.stack) {
+                logError("Stack: " + e.stack);
+            }
+        }
+    </script>
+</body>
+</html>
