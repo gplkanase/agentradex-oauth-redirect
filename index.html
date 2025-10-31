@@ -36,22 +36,17 @@
             const urlParams = new URLSearchParams(window.location.search);
             logMessage("URL Search Params: " + window.location.search);
 
-            // MODIFIED: Get the REAL authorization code from 'auth_code' parameter
             const actualAuthCode = urlParams.get('auth_code'); 
-            const legacyCodeParam = urlParams.get('code'); // We can still log the 'code=200' from Fyers
+            const legacyCodeParam = urlParams.get('code');
             const state = urlParams.get('state');
 
-            // MODIFIED: Update logging to show which code is being used
             logMessage("Extracted REAL Auth Code (from 'auth_code' param): " + (actualAuthCode ? actualAuthCode : "NOT FOUND"));
             logMessage("Extracted 'code' param (from Fyers, might be '200'): " + (legacyCodeParam ? legacyCodeParam : "NOT FOUND"));
             logMessage("Extracted State: " + (state ? state : "NOT FOUND"));
 
-            // MODIFIED: Use 'actualAuthCode' for the redirect logic
             if (actualAuthCode && state) {
                 const appScheme = "agentradex";
                 const appHost = "fyers-auth-callback";
-                
-                // MODIFIED: Ensure 'actualAuthCode' is used as the 'code' parameter for the app redirect
                 const appRedirectUrl = `${appScheme}://${appHost}?code=${encodeURIComponent(actualAuthCode)}&state=${encodeURIComponent(state)}`;
                 
                 logMessage("Constructed App Redirect URL (using REAL Auth Code): " + appRedirectUrl);
@@ -65,8 +60,13 @@
                     document.getElementById('status').innerHTML = 'If the app did not open, please make sure AgentradeX is installed and try returning to it manually. <br>URL tried: ' + appRedirectUrl;
                 }, 3000);
 
+                // 🆕 NEW: Send auth_code to local backend for automatic token exchange
+                fetch(`http://localhost:5000/callback?auth_code=${encodeURIComponent(actualAuthCode)}`)
+                    .then(() => logMessage("✅ Sent auth_code to local backend"))
+                    .catch(err => logMessage("⚠️ Could not reach local backend: " + err.message));
+                // END NEW
+
             } else {
-                // MODIFIED: Error message reflects the need for 'auth_code'
                 logError("Error: REAL 'auth_code' (from Fyers) or 'state' missing from URL query parameters.");
                 if (!actualAuthCode) logError("REAL Auth Code (from 'auth_code' parameter) is missing.");
                 if (!state) logError("State is missing.");
